@@ -9,28 +9,31 @@ app.use(cors());
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-  },
+  cors: { origin: "*" },
 });
-
-function generateRoom(email1, email2) {
-  return [email1, email2].sort().join("_");
-}
 
 io.on("connection", (socket) => {
   console.log("✅ User connected:", socket.id);
 
-  socket.on("joinPrivateChat", ({ sender, receiver }) => {
-    const room = generateRoom(sender, receiver);
-    socket.join(room);
-    console.log(`📌 ${sender} joined room ${room}`);
+  // 🔥 User joins their own email room
+  socket.on("registerUser", (email) => {
+    socket.join(email);
+    socket.email = email; // store email in socket
+    console.log(`📌 ${email} registered and joined personal room`);
   });
 
-  socket.on("sendPrivateMessage", ({ sender, receiver, message }) => {
-    const room = generateRoom(sender, receiver);
+  // 🔥 Send private message
+  socket.on("sendPrivateMessage", ({ receiver, message }) => {
+    const sender = socket.email; // auto get sender
 
-    io.to(room).emit("receivePrivateMessage", {
+    if (!sender) {
+      console.log("❌ Sender not registered");
+      return;
+    }
+
+    console.log(`💬 ${sender} → ${receiver}: ${message}`);
+
+    io.to(receiver).emit("receivePrivateMessage", {
       sender,
       message,
     });
@@ -42,5 +45,5 @@ io.on("connection", (socket) => {
 });
 
 server.listen(4000, "0.0.0.0", () => {
-  console.log("Server running on port 4000");
+  console.log("🚀 Server running on port 4000");
 });
