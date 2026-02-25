@@ -4,35 +4,43 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 
 const app = express();
-app.use(cors({ origin: "*" }));
-app.get("/", (req, res) => res.send("Socket server alive!"));
+app.use(cors());
 
 const server = http.createServer(app);
+
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
-  pingTimeout: 60000,
+  cors: {
+    origin: "*",
+  },
 });
+
+function generateRoom(email1, email2) {
+  return [email1, email2].sort().join("_");
+}
 
 io.on("connection", (socket) => {
   console.log("✅ User connected:", socket.id);
-  socket.emit("welcome", { msg: "Connected!" });
 
-  socket.on("joinRoom", (room) => {
+  socket.on("joinPrivateChat", ({ sender, receiver }) => {
+    const room = generateRoom(sender, receiver);
     socket.join(room);
-    console.log(`📱 Socket ${socket.id} joined room: ${room}`);
+    console.log(`📌 ${sender} joined room ${room}`);
   });
 
-  socket.on("sendMessage", (data) => {
-    console.log("💬 Message in room", data.room, ":", data.text);
-    io.to(data.room).emit("receiveMessage", data);
+  socket.on("sendPrivateMessage", ({ sender, receiver, message }) => {
+    const room = generateRoom(sender, receiver);
+
+    io.to(room).emit("receivePrivateMessage", {
+      sender,
+      message,
+    });
   });
 
-  socket.on("disconnect", (reason) => {
-    console.log("❌ User disconnected:", socket.id, "Reason:", reason);
+  socket.on("disconnect", () => {
+    console.log("❌ User disconnected:", socket.id);
   });
 });
 
-const PORT = process.env.PORT || 4000;
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Socket server on http://localhost:${PORT}`);
+server.listen(4000, "0.0.0.0", () => {
+  console.log("Server running on port 4000");
 });
